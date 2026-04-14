@@ -8,7 +8,7 @@ Analyze your Facebook/Instagram Ads campaigns from any AI agent. Reads Meta Mark
 
 ## Install
 
-Point your AI agent to this repo: **https://github.com/Synero/meta-ads-openclaw**
+Point your AI agent to this repo: **https://github.com/Synero/meta-ads-analyzer**
 
 Works with **Hermes**, **OpenClaw**, **Claude Code**, **Cursor**, or any agent that supports skills/instructions. Your agent reads SKILL.md and follows the instructions below.
 
