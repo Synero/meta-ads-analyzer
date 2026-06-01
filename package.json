@@ -1,0 +1,36 @@
+{
+  "name": "meta-ads-analyzer",
+  "version": "0.1.0",
+  "description": "Read-only Meta Ads analysis CLI and AI-agent skill for Facebook/Instagram Ads performance.",
+  "license": "MIT",
+  "author": "Synero",
+  "type": "commonjs",
+  "bin": {
+    "meta-ads-analyzer": "./meta-ads-cli.js"
+  },
+  "scripts": {
+    "test": "node --check meta-ads-cli.js && bash -n meta-ads.sh && bash -n setup.sh",
+    "help": "node meta-ads-cli.js --help"
+  },
+  "keywords": [
+    "meta-ads",
+    "facebook-ads",
+    "instagram-ads",
+    "marketing-api",
+    "ai-agents",
+    "analytics",
+    "openclaw",
+    "hermes"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Synero/meta-ads-analyzer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Synero/meta-ads-analyzer/issues"
+  },
+  "homepage": "https://github.com/Synero/meta-ads-analyzer#readme"
+}

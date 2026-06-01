@@ -1,146 +1,92 @@
 ---
 name: meta-ads-analyzer
-description: "Analyze Facebook/Instagram Ads campaigns via Meta Marketing API. Get campaign data, performance metrics, and insights directly from your ad account."
-tags: [meta, ads, facebook, instagram, analytics, marketing]
+description: "Analyze Facebook/Instagram Ads campaigns via the Meta Marketing API from any AI agent or shell automation."
+tags: [meta, ads, facebook, instagram, analytics, marketing, agents]
 related_skills: []
 ---
 
 # Meta Ads Analyzer
 
-Analyze your Facebook/Instagram Ads campaigns in real-time. No CSV exports, no dashboard switching — just ask your agent.
+Use this skill when a user asks an AI agent to inspect Facebook/Instagram Ads campaign performance, active campaigns, spend, CTR, CPC, CPM, leads, or messaging conversations.
 
-## Install
-
-Point your agent to this repo: https://github.com/Synero/meta-ads-openclaw
-
-Your agent reads this SKILL.md, sets up credentials, and follows the instructions below. Works with Hermes, OpenClaw, Claude Code, Cursor, or any agent that supports skills/instructions.
+The project is read-only. It does not create, edit, pause, or delete campaigns.
 
 ## Setup
 
 ```bash
-# Clone
-git clone https://github.com/Synero/meta-ads-openclaw.git
-cd meta-ads-openclaw
+git clone https://github.com/Synero/meta-ads-analyzer.git
+cd meta-ads-analyzer
 
-# Configure credentials
-export META_ACCESS_TOKEN="your_token_here"
+export META_ACCESS_TOKEN="your_meta_access_token"
 export META_ACCOUNT_ID="act_123456789"
 
-# Test connection
-bash meta-ads.sh test
+bash setup.sh
 ```
 
-**Getting your token:**
-1. Go to [Graph API Explorer](https://developers.facebook.com/tools/explorer)
-2. Select your Meta app
-3. Generate token with permissions: `ads_read`, `ads_management`
-4. Copy the token
+Required Meta permissions usually include:
+
+- `ads_read`
+- `ads_management` if the user's Meta app/account flow requires it
 
 ## Commands
 
 ```bash
-bash meta-ads.sh campaigns    # List all campaigns
-bash meta-ads.sh insights     # Performance metrics per campaign
-bash meta-ads.sh test         # Verify API connection
+./meta-ads.sh test
+./meta-ads.sh campaigns
+./meta-ads.sh insights
+./meta-ads.sh insights --datePreset=last_7d
 ```
 
 All commands return JSON.
 
-## How to Use
+## Intent mapping
 
-The user asks about their ads in natural language. Extract intent and run the right command.
+| User intent | Command | Analysis focus |
+|---|---|---|
+| “How are my campaigns doing?” | `./meta-ads.sh insights` | Spend, CTR, CPC, CPM, conversions |
+| “Which campaigns are active?” | `./meta-ads.sh campaigns` | `status === ACTIVE` |
+| “Which campaign is cheapest?” | `./meta-ads.sh insights` | Compare CPC/CPM against objective |
+| “How many leads/conversations?” | `./meta-ads.sh insights` | Inspect `actions` array |
+| “Is my API connected?” | `./meta-ads.sh test` | Token and account connectivity |
 
-| User says | Command | What to look for |
-|-----------|---------|-----------------|
-| "How are my campaigns?" | `insights` | Spend, CTR, top performers |
-| "Which campaign is best?" | `insights` | Compare CPC, CTR, conversions |
-| "What's active?" | `campaigns` | Filter by status=ACTIVE |
-| "Am I spending too much?" | `insights` | Total spend, CPC trends |
-| "How many leads?" | `insights` | Actions → lead count |
+## Output handling
 
-## Metrics Reference
+When summarizing results:
 
-| Metric | Field | Healthy range |
-|--------|-------|---------------|
-| Spend | `spend` | Depends on budget |
-| Impressions | `impressions` | — |
-| Reach | `reach` | — |
-| Clicks | `clicks` | — |
-| CTR | `ctr` | >2% good, <1% review creative |
-| CPC | `cpc` | Lower = better |
-| CPM | `cpm` | Industry-dependent |
-| Conversations | `messaging_conversation_started_7d` | — |
-| Leads | `lead` (in actions) | — |
+1. State the date preset used.
+2. Compare campaigns by objective-relevant metrics.
+3. Mention Meta's reporting delay.
+4. Do not expose raw access tokens or private account IDs in logs.
+5. If the CLI returns `status: error`, report the error and suggest the smallest fix.
 
-## Analysis Guidelines
+## Metrics reference
 
-### CTR
-- 1-2%: Industry average
-- \>2%: Good performance
-- <1%: Creative or targeting needs work
+- `spend`: amount spent in the selected period.
+- `impressions`: total ad impressions.
+- `reach`: unique accounts reached.
+- `clicks`: click/interactions count from Meta.
+- `ctr`: click-through rate.
+- `cpc`: cost per click.
+- `cpm`: cost per thousand impressions.
+- `actions`: conversion events such as leads or messaging conversations.
 
-### Frequency
-```
-Frequency = Impressions / Reach
-```
-- 1-2: Optimal
-- 2-3: Monitor
-- \>3: Ad fatigue risk — rotate creatives
+Basic heuristics:
 
-### CPC Comparison
-Compare CPC across campaigns to identify most efficient spend. Lower CPC = better cost efficiency.
-
-### Breakdown Effect
-Don't pause ad sets based solely on high CPA — the system optimizes across the whole set. Evaluate marginal vs average performance.
-
-## Output Format
-
-```json
-{
-  "status": "success",
-  "accountId": "act_123456789",
-  "campaigns": [
-    {
-      "name": "Campaign_Name",
-      "status": "ACTIVE",
-      "daily_budget": "16000",
-      "insights": {
-        "impressions": 226004,
-        "reach": 78024,
-        "clicks": 4282,
-        "ctr": "1.89%",
-        "cpc": "53.17",
-        "spend": "227694",
-        "messaging_conversation_started_7d": 333
-      }
-    }
-  ]
-}
-```
-
-## Limitations
-
-- Read-only — cannot modify campaigns
-- 1-2 hour data delay (Meta API)
-- Token expires ~every 60 days
-- Meta API rate limits apply
+- CTR below 1%: review creative, audience, or offer.
+- CTR above 2%: usually healthy, depending on vertical.
+- Frequency above 3: watch for fatigue if available.
+- CPC/CPM must be interpreted relative to objective and market.
 
 ## Troubleshooting
 
-**"Invalid token"** — Token expired. Generate a new one at Graph API Explorer.
+- `META_ACCESS_TOKEN is required`: set the token in the environment.
+- `Permission denied`: the app/token probably lacks ads permissions or account access.
+- `Account not found`: check that `META_ACCOUNT_ID` starts with `act_` and belongs to the token's accessible accounts.
+- Empty insights: check date preset, campaign delivery, attribution windows, and Meta reporting delays.
 
-**"Permission denied"** — App missing `ads_read` or `ads_management` permissions. Check app settings.
+## Files
 
-**"Account not found"** — Wrong Account ID. Format: `act_XXXXXXXXX`.
-
-## Project Files
-
-- `meta-ads.sh` — Shell wrapper (campaigns, insights, test)
-- `meta-ads-cli.js` — Node.js CLI that calls Meta Graph API
-- `setup.sh` — One-time setup script
-
-## API Notes
-
-- Meta Graph API v23.0
-- No dependencies beyond Node.js 18+
-- Free — uses your own Meta app credentials
+- `meta-ads.sh`: shell wrapper for agents.
+- `meta-ads-cli.js`: zero-dependency Node.js CLI.
+- `setup.sh`: local setup and syntax checks.
+- `.env.example`: credential template.

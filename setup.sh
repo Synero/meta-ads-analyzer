@@ -1,60 +1,57 @@
-#!/bin/bash
-# Setup script for Meta Ads OpenClaw
+#!/usr/bin/env bash
+# Setup script for Meta Ads Analyzer.
 
-echo "Meta Ads Analyzer — Setup"
+set -euo pipefail
+
+echo "Meta Ads Analyzer — setup"
 echo "========================="
-echo ""
+echo
 
-# Check Node.js
-if ! command -v node &> /dev/null; then
-    echo "❌ Node.js not found. Please install Node.js 18+"
-    exit 1
+if ! command -v node >/dev/null 2>&1; then
+  echo "Node.js not found. Install Node.js 18+ first." >&2
+  exit 1
 fi
 
-NODE_VERSION=$(node --version)
-echo "✅ Node.js version: $NODE_VERSION"
+NODE_MAJOR="$(node -p "Number(process.versions.node.split('.')[0])")"
+if [ "$NODE_MAJOR" -lt 18 ]; then
+  echo "Node.js 18+ is required. Current version: $(node --version)" >&2
+  exit 1
+fi
 
-# Make scripts executable
-echo ""
-echo "Making scripts executable..."
-chmod +x meta-ads-cli.js
-chmod +x meta-ads.sh
-echo "✅ Done"
+echo "Node.js: $(node --version)"
 
-# Check for tokens
-echo ""
-echo "Checking configuration..."
+chmod +x meta-ads-cli.js meta-ads.sh
 
-if [ -z "$META_ACCESS_TOKEN" ]; then
-    echo "⚠️  META_ACCESS_TOKEN not set"
-    echo "   Please set it with: export META_ACCESS_TOKEN='your_token'"
+echo
+if [ -z "${META_ACCESS_TOKEN:-}" ]; then
+  echo "META_ACCESS_TOKEN is not set."
+  echo "Set it with: export META_ACCESS_TOKEN='your_token'"
 else
-    echo "✅ META_ACCESS_TOKEN is set"
+  echo "META_ACCESS_TOKEN is set."
 fi
 
-if [ -z "$META_APP_SECRET" ]; then
-    echo "⚠️  META_APP_SECRET not set"
-    echo "   Please set it with: export META_APP_SECRET='your_secret'"
+if [ -z "${META_ACCOUNT_ID:-}" ]; then
+  echo "META_ACCOUNT_ID is not set."
+  echo "Set it with: export META_ACCOUNT_ID='act_123456789'"
 else
-    echo "✅ META_APP_SECRET is set"
+  echo "META_ACCOUNT_ID is set."
 fi
 
-if [ -z "$META_ACCOUNT_ID" ]; then
-    echo "⚠️  META_ACCOUNT_ID not set"
-    echo "   Please set it with: export META_ACCOUNT_ID='act_123456789'"
+echo
+node --check meta-ads-cli.js
+bash -n meta-ads.sh
+echo "Syntax checks passed."
+
+echo
+if [ -n "${META_ACCESS_TOKEN:-}" ]; then
+  echo "Testing Meta API connection..."
+  ./meta-ads.sh test || true
 else
-    echo "✅ META_ACCOUNT_ID is set"
+  echo "Skipping API test because META_ACCESS_TOKEN is not set."
 fi
 
-echo ""
-echo "Testing connection..."
-node meta-ads-cli.js testConnection
-
-echo ""
-echo "========================="
-echo "Setup complete! 🎉"
-echo ""
+echo
 echo "Quick start:"
-echo "  ./meta-ads.sh campaigns    # List campaigns"
-echo "  ./meta-ads.sh insights     # Get performance metrics"
-echo "  ./meta-ads.sh test         # Test connection"
+echo "  ./meta-ads.sh campaigns"
+echo "  ./meta-ads.sh insights"
+echo "  ./meta-ads.sh test"
