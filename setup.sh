@@ -42,6 +42,12 @@ node --check meta-ads-cli.js
 bash -n meta-ads.sh
 echo "Syntax checks passed."
 
+if command -v npm >/dev/null 2>&1; then
+  echo
+  echo "Running the offline test suite..."
+  npm test
+fi
+
 echo
 if [ -n "${META_ACCESS_TOKEN:-}" ]; then
   echo "Testing Meta API connection..."

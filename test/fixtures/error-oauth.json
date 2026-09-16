@@ -1,0 +1,9 @@
+{
+  "error": {
+    "message": "Invalid OAuth access token - Cannot parse access token",
+    "type": "OAuthException",
+    "code": 190,
+    "error_subcode": 460,
+    "fbtrace_id": "A1bC2dE3fG4hI5jK6lM7nO8"
+  }
+}

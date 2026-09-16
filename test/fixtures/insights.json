@@ -1,0 +1,36 @@
+{
+  "data": [
+    {
+      "campaign_name": "Search — Brand",
+      "impressions": "226004",
+      "reach": "78024",
+      "clicks": "4282",
+      "spend": "227694",
+      "ctr": "1.89",
+      "cpc": "53.17",
+      "cpm": "1007.47",
+      "actions": [
+        {
+          "action_type": "link_click",
+          "value": "3854"
+        },
+        {
+          "action_type": "messaging_conversation_started_7d",
+          "value": "333"
+        }
+      ],
+      "action_values": [
+        {
+          "action_type": "offsite_conversion.fb_pixel_lead",
+          "value": "0"
+        }
+      ]
+    }
+  ],
+  "paging": {
+    "cursors": {
+      "before": "MAZDZD",
+      "after": "MjQZD"
+    }
+  }
+}

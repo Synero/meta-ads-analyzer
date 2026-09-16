@@ -1,0 +1,32 @@
+{
+  "data": [
+    {
+      "id": "120210000000000001",
+      "name": "Search — Brand",
+      "status": "ACTIVE",
+      "objective": "OUTCOME_TRAFFIC",
+      "daily_budget": "1200000",
+      "lifetime_budget": null,
+      "spend_cap": null,
+      "start_time": "2026-05-01T04:00:00+0000",
+      "stop_time": null
+    },
+    {
+      "id": "120210000000000002",
+      "name": "Lead form — Campaign A",
+      "status": "PAUSED",
+      "objective": "OUTCOME_LEADS",
+      "daily_budget": null,
+      "lifetime_budget": "15000000",
+      "spend_cap": null,
+      "start_time": "2026-04-10T04:00:00+0000",
+      "stop_time": "2026-06-30T03:59:59+0000"
+    }
+  ],
+  "paging": {
+    "cursors": {
+      "before": "MAZDZD",
+      "after": "MjQZD"
+    }
+  }
+}

@@ -7,19 +7,40 @@
 'use strict';
 
 const https = require('https');
-const querystring = require('querystring');
+const http = require('http');
 
-const CONFIG = {
-  accessToken: process.env.META_ACCESS_TOKEN || '',
-  apiVersion: process.env.META_API_VERSION || 'v23.0',
-  timeoutMs: Number.parseInt(process.env.META_API_TIMEOUT_MS || '10000', 10),
-};
+const DEFAULT_API_VERSION = 'v26.0';
+const DEFAULT_BASE_URL = 'https://graph.facebook.com';
+const DEFAULT_TIMEOUT_MS = 10000;
 
 const COMMANDS = {
   getCampaigns: { desc: 'List all campaigns', needs: ['accountId'] },
   getInsights: { desc: 'Get campaign-level performance metrics', needs: ['accountId'] },
   testConnection: { desc: 'Test Meta API connection', needs: [] },
 };
+
+/**
+ * Resolved at call time, not at load time, so tests and long-running agents can
+ * change environment variables between requests.
+ */
+function getConfig(overrides = {}) {
+  const env = process.env;
+  const parsedTimeout = Number.parseInt(env.META_API_TIMEOUT_MS || String(DEFAULT_TIMEOUT_MS), 10);
+
+  const config = {
+    accessToken: env.META_ACCESS_TOKEN || '',
+    accountId: env.META_ACCOUNT_ID || '',
+    apiVersion: env.META_API_VERSION || DEFAULT_API_VERSION,
+    baseUrl: env.META_API_BASE_URL || DEFAULT_BASE_URL,
+    timeoutMs: Number.isFinite(parsedTimeout) && parsedTimeout > 0 ? parsedTimeout : DEFAULT_TIMEOUT_MS,
+  };
+
+  for (const [key, value] of Object.entries(overrides)) {
+    if (value !== undefined && value !== null && value !== '') config[key] = value;
+  }
+
+  return config;
+}
 
 function printJson(value) {
   console.log(JSON.stringify(value, null, 2));
@@ -30,6 +51,11 @@ function printHelp() {
     help: 'Meta Ads Analyzer CLI',
     usage: 'node meta-ads-cli.js <command> [options]',
     commands: COMMANDS,
+    options: {
+      '--accountId': 'Meta ad account id (falls back to META_ACCOUNT_ID)',
+      '--datePreset': 'Meta date preset, e.g. last_7d, last_30d (default: last_30d)',
+      '--apiVersion': 'Override the Graph API version for this call, e.g. v25.0',
+    },
     examples: [
       'node meta-ads-cli.js testConnection',
       'node meta-ads-cli.js getCampaigns --accountId=act_123456789',
@@ -37,7 +63,8 @@ function printHelp() {
     ],
     environment: {
       required: ['META_ACCESS_TOKEN', 'META_ACCOUNT_ID for wrapper usage'],
-      optional: ['META_API_VERSION', 'META_API_TIMEOUT_MS'],
+      optional: ['META_API_VERSION', 'META_API_BASE_URL', 'META_API_TIMEOUT_MS'],
+      defaults: { apiVersion: DEFAULT_API_VERSION, baseUrl: DEFAULT_BASE_URL, timeoutMs: DEFAULT_TIMEOUT_MS },
     },
   });
 }
@@ -48,25 +75,38 @@ function maskAccountId(accountId) {
   return `act_***${suffix}`;
 }
 
-function assertAccessToken() {
-  if (!CONFIG.accessToken) {
+function assertAccessToken(config) {
+  if (!config.accessToken) {
     throw new Error('META_ACCESS_TOKEN is required. Set it in your environment; do not hardcode tokens.');
   }
 }
 
-function makeApiRequest(path, params = {}) {
-  assertAccessToken();
+/**
+ * Builds the versioned Graph API URL. Kept separate from the request itself so the
+ * URL contract can be asserted without touching the network.
+ */
+function buildUrl(path, params = {}, config = getConfig()) {
+  const base = new URL(config.baseUrl);
+  const basePath = base.pathname.replace(/\/+$/, '');
+  const url = new URL(`${basePath}/${config.apiVersion}${path}`, base.origin);
+
+  const queryParams = { access_token: config.accessToken, ...params };
+  for (const [key, value] of Object.entries(queryParams)) {
+    if (value === undefined || value === null) continue;
+    url.searchParams.set(key, String(value));
+  }
+
+  return url;
+}
+
+function makeApiRequest(path, params = {}, config = getConfig()) {
+  assertAccessToken(config);
+
+  const url = buildUrl(path, params, config);
+  const transport = url.protocol === 'http:' ? http : https;
 
   return new Promise((resolve, reject) => {
-    const queryParams = {
-      access_token: CONFIG.accessToken,
-      ...params,
-    };
-
-    const query = querystring.stringify(queryParams);
-    const url = `https://graph.facebook.com/${CONFIG.apiVersion}${path}?${query}`;
-
-    const req = https.get(url, (res) => {
+    const req = transport.get(url, (res) => {
       let data = '';
       res.on('data', (chunk) => {
         data += chunk;
@@ -94,8 +134,8 @@ function makeApiRequest(path, params = {}) {
     });
 
     req.on('error', reject);
-    req.setTimeout(CONFIG.timeoutMs, () => {
-      req.destroy(new Error(`Meta API request timed out after ${CONFIG.timeoutMs}ms`));
+    req.setTimeout(config.timeoutMs, () => {
+      req.destroy(new Error(`Meta API request timed out after ${config.timeoutMs}ms`));
     });
   });
 }
@@ -110,30 +150,34 @@ function normalizeError(error, extra = {}) {
   };
 }
 
-async function testConnection() {
+async function testConnection(config = getConfig()) {
   try {
-    const result = await makeApiRequest('/me', { fields: 'id,name' });
+    const result = await makeApiRequest('/me', { fields: 'id,name' }, config);
     return {
       status: 'success',
       connected: true,
       user: result,
-      apiVersion: CONFIG.apiVersion,
+      apiVersion: config.apiVersion,
       timestamp: new Date().toISOString(),
     };
   } catch (error) {
-    return normalizeError(error, { connected: false, apiVersion: CONFIG.apiVersion });
+    return normalizeError(error, { connected: false, apiVersion: config.apiVersion });
   }
 }
 
-async function getCampaigns(accountId, datePreset = 'last_30d') {
+async function getCampaigns(accountId, datePreset = 'last_30d', config = getConfig()) {
   if (!accountId) throw new Error('accountId is required');
 
   try {
-    const result = await makeApiRequest(`/${accountId}/campaigns`, {
-      fields: 'id,name,status,objective,daily_budget,lifetime_budget,spend_cap,start_time,stop_time',
-      date_preset: datePreset,
-      limit: 100,
-    });
+    const result = await makeApiRequest(
+      `/${accountId}/campaigns`,
+      {
+        fields: 'id,name,status,objective,daily_budget,lifetime_budget,spend_cap,start_time,stop_time',
+        date_preset: datePreset,
+        limit: 100,
+      },
+      config,
+    );
 
     return {
       status: 'success',
@@ -148,16 +192,20 @@ async function getCampaigns(accountId, datePreset = 'last_30d') {
   }
 }
 
-async function getInsights(accountId, datePreset = 'last_30d') {
+async function getInsights(accountId, datePreset = 'last_30d', config = getConfig()) {
   if (!accountId) throw new Error('accountId is required');
 
   try {
-    const result = await makeApiRequest(`/${accountId}/insights`, {
-      fields: 'campaign_name,impressions,reach,clicks,spend,ctr,cpc,cpm,actions,action_values',
-      date_preset: datePreset,
-      level: 'campaign',
-      limit: 100,
-    });
+    const result = await makeApiRequest(
+      `/${accountId}/insights`,
+      {
+        fields: 'campaign_name,impressions,reach,clicks,spend,ctr,cpc,cpm,actions,action_values',
+        date_preset: datePreset,
+        level: 'campaign',
+        limit: 100,
+      },
+      config,
+    );
 
     return {
       status: 'success',
@@ -187,8 +235,8 @@ function parseArgs(args) {
   return options;
 }
 
-async function main() {
-  const args = process.argv.slice(2);
+async function main(argv = process.argv.slice(2)) {
+  const args = argv;
 
   if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
     printHelp();
@@ -209,19 +257,20 @@ async function main() {
   }
 
   try {
-    const accountId = options.accountId || process.env.META_ACCOUNT_ID;
+    const config = getConfig(options.apiVersion ? { apiVersion: options.apiVersion } : {});
+    const accountId = options.accountId || config.accountId;
     const datePreset = options.datePreset || 'last_30d';
     let result;
 
     switch (command) {
       case 'testConnection':
-        result = await testConnection();
+        result = await testConnection(config);
         break;
       case 'getCampaigns':
-        result = await getCampaigns(accountId, datePreset);
+        result = await getCampaigns(accountId, datePreset, config);
         break;
       case 'getInsights':
-        result = await getInsights(accountId, datePreset);
+        result = await getInsights(accountId, datePreset, config);
         break;
       default:
         throw new Error(`Unhandled command: ${command}`);
@@ -235,7 +284,26 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  printJson(normalizeError(error));
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  main().catch((error) => {
+    printJson(normalizeError(error));
+    process.exitCode = 1;
+  });
+}
+
+module.exports = {
+  DEFAULT_API_VERSION,
+  DEFAULT_BASE_URL,
+  DEFAULT_TIMEOUT_MS,
+  COMMANDS,
+  getConfig,
+  buildUrl,
+  makeApiRequest,
+  normalizeError,
+  maskAccountId,
+  testConnection,
+  getCampaigns,
+  getInsights,
+  parseArgs,
+  main,
+};

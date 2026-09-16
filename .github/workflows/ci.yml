@@ -5,16 +5,27 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ['18', '20', '22']
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-      - name: Setup Node.js
+      - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v5
         with:
-          node-version: '20'
-      - name: Run checks
+          node-version: ${{ matrix.node-version }}
+      - name: Syntax checks
+        run: npm run check
+      - name: Test suite (offline, no Meta credentials)
         run: npm test
