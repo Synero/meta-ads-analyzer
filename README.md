@@ -1,7 +1,9 @@
 # Meta Ads Analyzer
 
+![CI](https://github.com/Synero/meta-ads-analyzer/actions/workflows/ci.yml/badge.svg)
 ![Node.js](https://img.shields.io/badge/Node.js-18+-339933?logo=node.js&logoColor=white)
-![Meta Marketing API](https://img.shields.io/badge/Meta%20Marketing%20API-v23.0-0668E1)
+![Meta Marketing API](https://img.shields.io/badge/Meta%20Marketing%20API-v26.0-0668E1)
+![Tests](https://img.shields.io/badge/tests-offline%2C%20no%20credentials-success)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Zero dependencies](https://img.shields.io/badge/dependencies-zero-brightgreen)
 
@@ -30,7 +32,9 @@ Most agent integrations either require a heavier MCP setup or manual exports. Th
 - Campaign listing.
 - Campaign-level insights: spend, impressions, reach, clicks, CTR, CPC, CPM, actions, and action values.
 - Environment-variable based credentials.
+- Graph API version pinning per environment or per call.
 - Shell wrapper with English and Spanish command aliases.
+- Offline test suite that never touches the network or needs a token.
 - Zero runtime dependencies beyond Node.js 18+.
 
 ## Quick start
@@ -80,6 +84,7 @@ Direct Node CLI usage:
 node meta-ads-cli.js testConnection
 node meta-ads-cli.js getCampaigns --accountId=act_123456789
 node meta-ads-cli.js getInsights --accountId=act_123456789 --datePreset=last_30d
+node meta-ads-cli.js getInsights --accountId=act_123456789 --apiVersion=v25.0
 ```
 
 ## Example output
@@ -160,7 +165,15 @@ META_ACCOUNT_ID=act_123456789
 Optional:
 
 ```bash
-META_API_VERSION=v23.0
+META_API_VERSION=v26.0                        # pin a Graph API version
+META_API_BASE_URL=https://graph.facebook.com  # override for proxies, local runs, and tests
+META_API_TIMEOUT_MS=10000
+```
+
+Any version can also be pinned for a single call:
+
+```bash
+node meta-ads-cli.js testConnection --apiVersion=v25.0
 ```
 
 Copy `.env.example` if you want a local template:
@@ -186,6 +199,7 @@ The tool is read-only and does not create, update, pause, or delete campaigns.
 
 - Access tokens are read from environment variables.
 - Tokens are never intentionally printed.
+- Ad account IDs are masked in error output (`act_***6789`).
 - The CLI returns Meta API data as JSON; downstream agents should avoid sharing sensitive account or campaign data in public logs.
 - This project does not store credentials.
 
@@ -194,10 +208,32 @@ See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
 ## Development
 
 ```bash
-npm test
+npm test        # offline test suite
+npm run check   # syntax checks for the Node and shell entrypoints
 ```
 
-The test script performs syntax checks for the Node and shell entrypoints without calling Meta APIs.
+The suite boots a local HTTP server that impersonates the Graph API, so request building, API version pinning, error classification, timeouts, account masking, and token handling are all asserted with no credentials and no outbound network call. See [`test/`](test/).
+
+The CLI is also importable, which is how the tests drive it:
+
+```js
+const { getInsights, getConfig } = require('./meta-ads-cli.js');
+```
+
+## Maintenance and API version policy
+
+Meta ships a new Graph API version roughly every three months and retires old ones on a published schedule. This project tracks the current release:
+
+| Graph API version | Released | Available until |
+|---|---|---|
+| v26.0 (default) | 2026-07-29 | TBD |
+| v25.0 | 2026-02-18 | 2028-07-29 |
+| v24.0 | 2025-10-08 | 2028-02-18 |
+| v23.0 | 2025-05-29 | 2027-10-08 |
+
+The default lives in `DEFAULT_API_VERSION` inside `meta-ads-cli.js` and is asserted in `test/unit.test.js`, so a version bump is a one-line change plus a test run. Pin per environment or per call when a specific version is required instead of editing the code.
+
+This table becomes stale by design: Meta deprecates versions on a schedule this repo cannot control. That is the maintenance backlog, tracked in [ROADMAP.md](ROADMAP.md).
 
 ## Roadmap
 

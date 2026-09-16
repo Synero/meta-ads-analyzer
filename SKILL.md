@@ -28,6 +28,17 @@ Required Meta permissions usually include:
 - `ads_read`
 - `ads_management` if the user's Meta app/account flow requires it
 
+## API version
+
+The default is Graph API `v26.0`. Pin another version per environment or per call when a workflow needs it:
+
+```bash
+export META_API_VERSION=v25.0
+node meta-ads-cli.js testConnection --apiVersion=v25.0
+```
+
+If Meta deprecates the pinned version, the API returns an error naming it; bump `META_API_VERSION` or upgrade the CLI instead of retrying.
+
 ## Commands
 
 ```bash
@@ -87,6 +98,7 @@ Basic heuristics:
 ## Files
 
 - `meta-ads.sh`: shell wrapper for agents.
-- `meta-ads-cli.js`: zero-dependency Node.js CLI.
+- `meta-ads-cli.js`: zero-dependency Node.js CLI (also importable as a module).
 - `setup.sh`: local setup and syntax checks.
+- `test/`: offline suite against a fake Graph API server; run with `npm test`.
 - `.env.example`: credential template.
